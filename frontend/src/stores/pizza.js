@@ -1,127 +1,119 @@
 import { defineStore } from "pinia";
+import { ingredientsQuantity } from "@/common/helpers/ingredients-quantity";
 import { pizzaPrice } from "@/common/helpers/pizza-price";
 import { useDataStore } from "@/stores/data";
 
-export const useCartStore = defineStore("cart", {
+export const usePizzaStore = defineStore("pizza", {
   state: () => ({
-    phone: "",
-    address: {
-      street: "",
-      building: "",
-      flat: "",
-      comment: "",
-    },
-    pizzas: [],
-    misc: [],
+    index: null,
+    name: "",
+    sauceId: 0,
+    doughId: 0,
+    sizeId: 0,
+    ingredients: [],
   }),
   getters: {
-    pizzasExtended: (state) => {
+    sauce: (state) => {
       const data = useDataStore();
-
-      return state.pizzas.map((pizza) => {
-        const pizzaIngredientsIds = pizza.ingredients.map(
-          (i) => i.ingredientId
-        );
-
-        return {
-          name: pizza.name,
-          quantity: pizza.quantity,
-          dough: data.doughs.find((i) => i.id === pizza.doughId),
-          size: data.sizes.find((i) => i.id === pizza.sizeId),
-          sauce: data.sauces.find((i) => i.id === pizza.sauceId),
-          ingredients: data.ingredients.filter((i) =>
-            pizzaIngredientsIds.includes(i.id)
-          ),
-          price: pizzaPrice(pizza),
-        };
-      });
+      return data.sauces.find((i) => i.id === state.sauceId) ?? data.sauces[0];
     },
-    miscExtended: (state) => {
+    dough: (state) => {
       const data = useDataStore();
-
-      return data.misc.map((misc) => {
-        return {
-          ...misc,
-          quantity: state.misc.find((i) => i.miscId === misc.id)?.quantity ?? 0,
-        };
-      });
+      return data.doughs.find((i) => i.id === state.doughId) ?? data.doughs[0];
     },
-    total: (state) => {
-      const pizzaPrices = state.pizzasExtended
-        .map((item) => item.quantity * item.price)
-        .reduce((acc, val) => acc + val, 0);
-
-      const miscPrices = state.miscExtended
-        .map((item) => item.quantity * item.price)
-        .reduce((acc, val) => acc + val, 0);
-
-      return pizzaPrices + miscPrices;
+    size: (state) => {
+      const data = useDataStore();
+      return data.sizes.find((i) => i.id === state.sizeId) ?? data.sizes[0];
+    },
+    ingredientsExtended: (state) => {
+      const data = useDataStore();
+      const pizzaIngredientsIds = state.ingredients.map((i) => i.ingredientId);
+      return data.ingredients
+        .filter((i) => pizzaIngredientsIds.includes(i.id))
+        .map((i) => {
+          return {
+            ...i,
+            quantity:
+              state.ingredients.find((item) => item.ingredientId === i.id)
+                ?.quantity ?? 0,
+          };
+        });
+    },
+    price: (state) => {
+      return pizzaPrice(state);
+    },
+    ingredientQuantities: (state) => {
+      return ingredientsQuantity(state);
     },
   },
   actions: {
-    savePizza(pizza) {
-      const { index, ...pizzaData } = pizza;
+    setIndex(index) {
+      this.index = index;
+    },
+    setName(name) {
+      this.name = name;
+    },
+    setSauce(sauceId) {
+      this.sauceId = sauceId;
+    },
+    setDough(doughId) {
+      this.doughId = doughId;
+    },
+    setSize(sizeId) {
+      this.sizeId = sizeId;
+    },
+    setIngredients(ingredients) {
+      this.ingredients = ingredients;
+    },
+    addIngredient(ingredientId) {
+      this.ingredients.push({
+        ingredientId,
+        quantity: 1,
+      });
+    },
+    incrementIngredientQuantity(ingredientId) {
+      const ingredientIdx = this.ingredients.findIndex(
+        (item) => item.ingredientId === ingredientId
+      );
 
-      if (index !== null) {
-        this.pizzas[index] = {
-          quantity: this.pizzas[index].quantity,
-          ...pizzaData,
-        };
-      } else {
-        this.pizzas.push({
-          quantity: 1,
-          ...pizzaData,
-        });
+      if (ingredientIdx === -1) {
+        this.addIngredient(ingredientId);
+        return;
       }
+
+      this.ingredients[ingredientIdx].quantity++;
     },
-    setPizzaQuantity(index, count) {
-      if (this.pizzas[index]) {
-        this.pizzas[index].quantity = count;
-      }
-    },
-    setMiscQuantity(miscId, count) {
-      const miscIdx = this.misc.findIndex((item) => item.miscId === miscId);
+    setIngredientQuantity(ingredientId, count) {
+      const ingredientIdx = this.ingredients.findIndex(
+        (item) => item.ingredientId === ingredientId
+      );
 
       /*
        * Добавляем ингредиент, если его нет, а количество больше 0
        * Если ингредиента нет, а количество 0 или меньше, то ничего не делаем
        */
-      if (miscIdx === -1 && count > 0) {
-        this.misc.push({
-          miscId,
-          quantity: 1,
-        });
+      if (ingredientIdx === -1 && count > 0) {
+        this.addIngredient(ingredientId);
         return;
-      } else if (miscIdx === -1) {
+      } else if (ingredientIdx === -1) {
         return;
       }
 
       /* Удаляем ингредиент, если количество 0 */
       if (count === 0) {
-        this.misc.splice(miscIdx, 1);
+        this.ingredients.splice(ingredientIdx, 1);
         return;
       }
 
-      this.misc[miscIdx].quantity = count;
+      this.ingredients[ingredientIdx].quantity = count;
     },
-    setPhone(phone) {
-      this.phone = phone;
-    },
-    setAddress(address) {
-      const { street, building, flat, comment } = address;
-      this.address = { street, building, flat, comment };
-    },
-    setStreet(street) {
-      this.address.street = street;
-    },
-    setBuilding(building) {
-      this.address.building = building;
-    },
-    setFlat(flat) {
-      this.address.flat = flat;
-    },
-    setComment(comment) {
-      this.address.street = comment;
+    loadPizza(pizza) {
+      this.index = pizza.index;
+      this.name = pizza.name;
+      this.sauceId = pizza.sauceId;
+      this.doughId = pizza.doughId;
+      this.sizeId = pizza.sizeId;
+      this.ingredients = pizza.ingredients;
     },
   },
 });
