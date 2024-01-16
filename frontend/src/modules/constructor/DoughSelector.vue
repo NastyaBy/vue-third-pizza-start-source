@@ -12,10 +12,10 @@
           <input
             type="radio"
             name="dough"
-            :value="doughType.value"
-            :checked="doughType.value === modelValue"
+            :value="doughType.id"
+            :checked="doughType.id === modelValue"
             class="visually-hidden"
-            @input="emit('update:modelValue', doughType.value)"
+            @input="emit('update:modelValue', doughType.id)"
           />
           <img :src="getImage(doughType.image)" :alt="doughType.name" />
 
@@ -30,8 +30,8 @@
 <script setup>
 defineProps({
   modelValue: {
-    type: String,
-    default: "",
+    type: Number,
+    required: true,
   },
   items: {
     type: Array,
@@ -59,16 +59,21 @@ const getImage = (image) => {
 
 .dough__input {
   position: relative;
+
   margin-right: 8%;
   margin-bottom: 20px;
   padding-left: 50px;
+
   cursor: pointer;
 
   img {
     @include p_center-v;
+
     width: 36px;
     height: 36px;
+
     transition: 0.3s;
+
     border-radius: 50%;
   }
 
@@ -78,6 +83,7 @@ const getImage = (image) => {
 
   span {
     @include l-s11-h13;
+
     display: block;
   }
 
